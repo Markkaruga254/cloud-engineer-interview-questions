@@ -46,6 +46,9 @@ h1 { margin: 0; font-size: clamp(1.9rem, 4vw, 2.8rem); line-height: 1.05; font-w
 .overall { text-align: right; min-width: 200px; }
 .overall .big { font-size: 2.2rem; font-weight: 800; line-height: 1; }
 .overall .of { color: var(--muted); }
+.overall .bar { height: 7px; margin-top: 9px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.overall .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+.overall .ready { margin-top: 6px; font-size: 0.82rem; color: var(--muted); }
 .tools { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
 .btn {
   border: 1px solid var(--line); background: var(--surface); border-radius: 8px;
@@ -116,6 +119,18 @@ summary code { font-size: 0.9em; }
 .notes label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
 .notes textarea { width: 100%; min-height: 72px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
 .empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+.overview-progress { height: 12px; margin-top: 16px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.overview-progress i { display:block; height:100%; background: var(--accent); transition: width .2s; }
+.progress-label { font-size: .88rem; color: var(--muted); }
+.overview-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
+.overview-card { text-align:left; display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px; padding:16px; cursor:pointer; }
+.overview-card:hover { border-color:var(--tc); transform:translateY(-1px); }
+.overview-card .card-title { font-weight:700; }
+.overview-card strong { font-size:1.05rem; color:var(--tc); }
+.overview-card .card-bar { grid-column:1/-1; height:6px; background:var(--line); border-radius:99px; overflow:hidden; }
+.overview-card .card-bar i { display:block; height:100%; background:var(--tc); }
+.overview-card small { grid-column:1/-1; color:var(--muted); }
+.overview-actions { margin-top:16px; }
 
 @media (max-width: 800px) {
   .masthead { grid-template-columns: 1fr; padding: 22px 16px 14px; }
@@ -123,6 +138,7 @@ summary code { font-size: 0.9em; }
   .shell { grid-template-columns: 1fr; padding: 0 16px 48px; gap: 16px; }
   .tracks { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .tab { min-width: 130px; flex: none; }
+  .overview-grid { grid-template-columns: 1fr; }
   .body, .notes { margin-left: 14px; padding-left: 0; }
   .body { padding-right: 14px; }
 }
@@ -136,7 +152,9 @@ summary code { font-size: 0.9em; }
     <p class="sub">Open a question, answer it out loud, then check it off. Progress is saved in this browser.</p>
   </div>
   <div class="overall" aria-live="polite">
-    <div><span class="big" id="ov-n">0</span> <span class="of">of <span id="ov-t">0</span> done</span></div>
+    <div><span class="big" id="ov-n">0</span> <span class="of">of <span id="ov-t">0</span> ready</span></div>
+    <div class="bar" aria-hidden="true"><i id="ov-bar"></i></div>
+    <div class="ready" id="ov-pct">0% interview ready</div>
   </div>
   <div class="tools">
     <button class="btn" id="export">Export progress</button>
@@ -146,7 +164,7 @@ summary code { font-size: 0.9em; }
   </div>
 </header>
 <div class="shell">
-  <nav class="tracks" id="tracks" aria-label="Tracks"></nav>
+  <nav class="tracks" id="tracks" aria-label="Study navigation"></nav>
   <main class="panel" id="panel"></main>
 </div>
 <noscript><p style="padding:24px">This tracker needs JavaScript to save your progress.</p></noscript>
@@ -181,6 +199,10 @@ const DATA = /*__DATA__*/null;
   var nav = document.getElementById("tracks");
   function renderNav() {
     nav.innerHTML = "";
+    var home = el("button", { "class": "tab" + (current === null ? " active" : ""), "data-t": "__overview" });
+    home.innerHTML = '<span class="nm">Dashboard</span><span class="ct" id="nav-overall">0%</span><span class="meter"><i id="nav-meter"></i></span>';
+    home.onclick = function () { openOverview(); };
+    nav.appendChild(home);
     tracks.forEach(function (t) {
       var n = doneCount(t), pct = t.items.length ? Math.round(100 * n / t.items.length) : 0;
       var b = el("button", { "class": "tab" + (n === t.items.length && n ? " complete" : ""), "data-t": t.id });
@@ -194,10 +216,60 @@ const DATA = /*__DATA__*/null;
     var tt = totals();
     document.getElementById("ov-n").textContent = tt[0];
     document.getElementById("ov-t").textContent = tt[1];
+    var pct = tt[1] ? Math.round(100 * tt[0] / tt[1]) : 0;
+    document.getElementById("ov-bar").style.width = pct + "%";
+    document.getElementById("ov-pct").textContent = pct + "% interview ready";
+    var np = document.getElementById("nav-overall"), nm = document.getElementById("nav-meter");
+    if (np) np.textContent = pct + "%";
+    if (nm) nm.style.width = pct + "%";
   }
 
   /* ---- one track ---- */
   var panel = document.getElementById("panel");
+  function openOverview() {
+    current = null;
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+    panel.innerHTML = "";
+    var tt = totals(), pct = tt[1] ? Math.round(100 * tt[0] / tt[1]) : 0;
+    var head = el("section", { "class": "panel-head overview-head" });
+    head.innerHTML = "<h2>My cloud interview progress</h2><p>Use this as your control center. A question is counted as ready only when you check it off.</p>" +
+      '<div class="count"><b>' + tt[0] + '</b><span>of ' + tt[1] + ' questions ready</span></div>' +
+      '<div class="overview-progress"><i style="width:' + pct + '%"></i></div>' +
+      '<p class="progress-label">' + pct + '% interview ready</p>';
+    panel.appendChild(head);
+
+    var grid = el("div", { "class": "overview-grid" });
+    tracks.forEach(function(t) {
+      var n = doneCount(t), p = t.items.length ? Math.round(100*n/t.items.length) : 0;
+      var card = el("button", { "class": "overview-card" });
+      card.style.setProperty("--tc", colorOf(t));
+      card.innerHTML = '<span class="card-title">' + t.name + '</span><strong>' + n + '/' + t.items.length + '</strong>' +
+        '<span class="card-bar"><i style="width:' + p + '%"></i></span><small>' + p + '% complete</small>';
+      card.onclick = function(){ openTrack(t.id); };
+      grid.appendChild(card);
+    });
+    panel.appendChild(grid);
+
+    var actions = el("div", { "class": "controls overview-actions" });
+    actions.innerHTML = '<button class="btn" id="next-global">Jump to next unchecked</button>' +
+      '<button class="btn danger" id="clear-all">Reset all progress</button>';
+    panel.appendChild(actions);
+    actions.querySelector("#next-global").onclick = function() {
+      for (var i=0; i<tracks.length; i++) {
+        var item = tracks[i].items.filter(function(x){ return !done[x.id]; })[0];
+        if (item) { openTrack(tracks[i].id); setTimeout(function(){ jumpTo(item.id); }, 0); return; }
+      }
+    };
+    actions.querySelector("#clear-all").onclick = function() {
+      if (!confirm("Reset every check mark? Your notes stay.")) return;
+      done = {};
+      save(KEY_DONE, done);
+      openOverview();
+    };
+    renderNav();
+    window.scrollTo(0,0);
+  }
+
   function openTrack(id, keepFilters) {
     current = byId(id) || tracks[0];
     save(KEY_TRACK, current.id);
@@ -311,6 +383,7 @@ const DATA = /*__DATA__*/null;
   }
 
   function refreshAll() {
+    if (!current) { renderNav(); return; }
     var t = current, n = doneCount(t);
     panel.querySelector("#c-n").textContent = n;
     panel.querySelector("#c-t").textContent = "of " + t.items.length + (n === t.items.length && n ? " - track complete" : " done");
@@ -369,11 +442,13 @@ const DATA = /*__DATA__*/null;
     fileInput.value = "";
   };
 
-  var start = location.hash.slice(1) || load(KEY_TRACK, "");
-  openTrack(byId(start) ? start : tracks[0].id);
+  var start = location.hash.slice(1);
+  if (byId(start)) openTrack(start);
+  else openOverview();
   window.addEventListener("hashchange", function () {
     var id = location.hash.slice(1);
-    if (byId(id) && id !== current.id) openTrack(id);
+    if (!id) openOverview();
+    else if (byId(id) && (!current || id !== current.id)) openTrack(id);
   });
 })();
 </script>
