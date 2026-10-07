@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloud interview tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #e9eef1; --surface: #f8fafb; --ink: #16212b; --muted: #55656f; --line: #c9d4db;
+  --accent: #2f4b9b; --focus: #1a5fd0;
+  --ui: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --read: "Literata", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10171d; --surface: #18222b; --ink: #e6edf2; --muted: #93a4b1; --line: #2b3944; --focus: #7db0ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10171d; --surface: #18222b; --ink: #e6edf2; --muted: #93a4b1; --line: #2b3944; --focus: #7db0ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: auto; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 var(--ui);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 12px); }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+a { color: inherit; }
+
+.masthead {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px 32px; align-items: end;
+  max-width: 1180px; margin: 0 auto; padding: 32px 24px 20px;
+}
+h1 { margin: 0; font-size: clamp(1.9rem, 4vw, 2.8rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.02em; }
+.sub { margin: 8px 0 0; color: var(--muted); max-width: 52ch; }
+.overall { text-align: right; min-width: 200px; }
+.overall .big { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+.overall .of { color: var(--muted); }
+.tools { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; text-decoration: none; font-size: 0.9rem;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.danger:hover { border-color: #c0392b; color: #c0392b; }
+
+.shell { max-width: 1180px; margin: 0 auto; padding: 0 24px 64px; display: grid; grid-template-columns: 250px 1fr; gap: 28px; }
+.tracks { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); align-self: start; display: flex; flex-direction: column; gap: 6px; }
+.tab {
+  text-align: left; border: 1px solid transparent; background: transparent; border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline;
+}
+.tab:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.tab[aria-current="true"] { background: var(--surface); border-color: var(--line); }
+.tab .nm { font-weight: 600; }
+.tab .ct { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.tab .meter { grid-column: 1 / -1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.tab .meter i { display: block; height: 100%; width: 0; background: var(--tc); transition: width 0.2s; }
+.tab.complete .nm::after { content: " \2713"; color: var(--tc); }
+
+.panel { min-width: 0; }
+.panel-head { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 18px; }
+.panel-head h2 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; }
+.panel-head p { margin: 4px 0 0; color: var(--muted); }
+.count { margin-top: 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.count b { font-size: 2.4rem; line-height: 1; font-weight: 800; color: var(--tc); font-variant-numeric: tabular-nums; }
+.count span { color: var(--muted); }
+.ledger { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 14px; }
+.cell { width: 11px; height: 20px; border-radius: 2px; background: var(--line); border: 0; padding: 0; cursor: pointer; }
+.cell.on { background: var(--tc); }
+.cell:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 10px; }
+.controls input[type=search] {
+  flex: 1 1 200px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px;
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 7px 12px; cursor: pointer; font-size: 0.9rem; }
+.seg button[aria-pressed="true"] { background: var(--tc); color: #fff; }
+
+.group { margin: 22px 4px 6px; font-weight: 600; color: var(--muted); }
+.qs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: auto 1fr; align-items: start; }
+.q[hidden] { display: none; }
+.q input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 13px 0 0 14px; border: 2px solid var(--muted); border-radius: 6px; cursor: pointer; background: transparent; display: grid; place-content: center; flex: none; }
+.q input[type=checkbox]:checked { background: var(--tc); border-color: var(--tc); }
+.q input[type=checkbox]:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.q.done summary { color: var(--muted); }
+.q.target { border-color: var(--tc); }
+details { min-width: 0; }
+summary { cursor: pointer; padding: 11px 14px; font-weight: 600; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "+"; display: inline-block; width: 1.1em; color: var(--muted); font-weight: 400; }
+details[open] > summary::before { content: "\2212"; }
+summary code { font-size: 0.9em; }
+.body { padding: 0 16px 16px 30px; font-family: var(--read); font-size: 1rem; line-height: 1.65; max-width: 72ch; }
+.body:empty { display: none; }
+.body p { margin: 0.6em 0; }
+.body h4 { font-family: var(--ui); margin: 1.2em 0 0.3em; font-size: 1rem; }
+.body ul, .body ol { padding-left: 1.3em; }
+.body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: 0.92rem; font-family: var(--ui); }
+.body th, .body td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.body pre { overflow-x: auto; background: var(--bg); padding: 10px 12px; border-radius: 8px; }
+.body code { font-size: 0.9em; }
+.notes { margin: 0 16px 16px 30px; }
+.notes label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+.notes textarea { width: 100%; min-height: 72px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+
+@media (max-width: 800px) {
+  .masthead { grid-template-columns: 1fr; padding: 22px 16px 14px; }
+  .overall { text-align: left; }
+  .shell { grid-template-columns: 1fr; padding: 0 16px 48px; gap: 16px; }
+  .tracks { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .tab { min-width: 130px; flex: none; }
+  .body, .notes { margin-left: 14px; padding-left: 0; }
+  .body { padding-right: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div>
+    <h1>Cloud interview tracker</h1>
+    <p class="sub">Open a question, answer it out loud, then check it off. Progress is saved in this browser.</p>
+  </div>
+  <div class="overall" aria-live="polite">
+    <div><span class="big" id="ov-n">0</span> <span class="of">of <span id="ov-t">0</span> done</span></div>
+  </div>
+  <div class="tools">
+    <button class="btn" id="export">Export progress</button>
+    <button class="btn" id="import">Import progress</button>
+    <input type="file" id="file" accept="application/json" hidden>
+    <a class="btn" href="https://github.com/sv222/cloud-engineer-interview-questions">Source questions</a>
+  </div>
+</header>
+<div class="shell">
+  <nav class="tracks" id="tracks" aria-label="Tracks"></nav>
+  <main class="panel" id="panel"></main>
+</div>
+<noscript><p style="padding:24px">This tracker needs JavaScript to save your progress.</p></noscript>
+<script>
+const DATA = /*__DATA__*/null;
+(function () {
+  "use strict";
+  var KEY_DONE = "cloudtrack:done:v1", KEY_NOTES = "cloudtrack:notes:v1", KEY_TRACK = "cloudtrack:track:v1";
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var done = load(KEY_DONE, {}), notes = load(KEY_NOTES, {});
+  var tracks = DATA.tracks;
+  var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+  function colorOf(t) { return dark ? t.color[1] : t.color[0]; }
+  var current = null, filter = "all", query = "";
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+  function doneCount(t) { return t.items.filter(function (i) { return done[i.id]; }).length; }
+  function totals() {
+    var n = 0, tot = 0;
+    tracks.forEach(function (t) { n += doneCount(t); tot += t.items.length; });
+    return [n, tot];
+  }
+  function byId(id) { return tracks.filter(function (t) { return t.id === id; })[0]; }
+
+  /* ---- track list ---- */
+  var nav = document.getElementById("tracks");
+  function renderNav() {
+    nav.innerHTML = "";
+    tracks.forEach(function (t) {
+      var n = doneCount(t), pct = t.items.length ? Math.round(100 * n / t.items.length) : 0;
+      var b = el("button", { "class": "tab" + (n === t.items.length && n ? " complete" : ""), "data-t": t.id });
+      b.style.setProperty("--tc", colorOf(t));
+      b.setAttribute("aria-current", t === current ? "true" : "false");
+      b.innerHTML = '<span class="nm">' + t.name + '</span><span class="ct">' + n + "/" + t.items.length +
+        '</span><span class="meter"><i style="width:' + pct + '%"></i></span>';
+      b.onclick = function () { openTrack(t.id); };
+      nav.appendChild(b);
+    });
+    var tt = totals();
+    document.getElementById("ov-n").textContent = tt[0];
+    document.getElementById("ov-t").textContent = tt[1];
+  }
+
+  /* ---- one track ---- */
+  var panel = document.getElementById("panel");
+  function openTrack(id, keepFilters) {
+    current = byId(id) || tracks[0];
+    save(KEY_TRACK, current.id);
+    if (location.hash.slice(1) !== current.id) history.replaceState(null, "", "#" + current.id);
+    if (!keepFilters) { filter = "all"; query = ""; }
+    renderNav(); renderPanel();
+    window.scrollTo(0, 0);
+  }
+
+  function renderPanel() {
+    var t = current;
+    panel.innerHTML = "";
+    panel.style.setProperty("--tc", colorOf(t));
+    var head = el("section", { "class": "panel-head" });
+    head.innerHTML = "<h2>" + t.name + "</h2><p>" + t.blurb + '</p><div class="count" aria-live="polite"><b id="c-n"></b><span id="c-t"></span></div><div class="ledger" id="ledger"></div>';
+    panel.appendChild(head);
+
+    var ctl = el("div", { "class": "controls" });
+    ctl.innerHTML =
+      '<input type="search" id="q" placeholder="Search this track" aria-label="Search this track">' +
+      '<div class="seg" role="group" aria-label="Filter">' +
+      '<button data-f="all">All</button><button data-f="todo">To do</button><button data-f="done">Done</button></div>' +
+      '<button class="btn" id="next">Next unchecked</button>' +
+      '<button class="btn" id="all">Mark all done</button>' +
+      '<button class="btn danger" id="clear">Clear track</button>';
+    panel.appendChild(ctl);
+
+    var list = el("ol", { "class": "qs", id: "list" });
+    var lastGroup = null, ledger = head.querySelector("#ledger");
+    t.items.forEach(function (it, idx) {
+      if (it.group && it.group !== lastGroup) {
+        lastGroup = it.group;
+        var g = el("li", { "class": "group", "data-group": "1" });
+        g.textContent = it.group;
+        list.appendChild(g);
+      }
+      var li = el("li", { "class": "q", id: "q-" + it.id, "data-id": it.id });
+      var cb = el("input", { type: "checkbox", id: "cb-" + it.id });
+      cb.setAttribute("aria-label", "Mark done: " + it.title.replace(/<[^>]+>/g, ""));
+      cb.checked = !!done[it.id];
+      cb.onchange = function () { setDone(it.id, cb.checked); };
+      var d = el("details");
+      var s = el("summary", null, it.title);
+      var body = el("div", { "class": "body" }, it.html);
+      var nw = el("div", { "class": "notes" });
+      var nl = el("label", { "for": "n-" + it.id }); nl.textContent = "Your notes";
+      var ta = el("textarea", { id: "n-" + it.id });
+      ta.value = notes[it.id] || "";
+      ta.oninput = function () {
+        if (ta.value) notes[it.id] = ta.value; else delete notes[it.id];
+        save(KEY_NOTES, notes);
+      };
+      nw.appendChild(nl); nw.appendChild(ta);
+      d.appendChild(s); d.appendChild(body); d.appendChild(nw);
+      li.appendChild(cb); li.appendChild(d);
+      list.appendChild(li);
+
+      var c = el("button", { "class": "cell", "data-id": it.id });
+      c.title = it.title.replace(/<[^>]+>/g, "");
+      c.setAttribute("aria-label", "Go to: " + c.title);
+      c.onclick = function () { jumpTo(it.id); };
+      ledger.appendChild(c);
+    });
+    panel.appendChild(list);
+    var empty = el("div", { "class": "empty", id: "empty" }); empty.hidden = true;
+    empty.textContent = "Nothing matches. Clear the search or switch the filter.";
+    panel.appendChild(empty);
+
+    var q = ctl.querySelector("#q");
+    q.value = query;
+    q.oninput = function () { query = q.value.trim().toLowerCase(); applyFilter(); };
+    ctl.querySelectorAll(".seg button").forEach(function (b) {
+      b.onclick = function () { filter = b.getAttribute("data-f"); applyFilter(); };
+    });
+    ctl.querySelector("#next").onclick = function () {
+      var n = t.items.filter(function (i) { return !done[i.id]; })[0];
+      if (!n) return;
+      filter = "all"; query = ""; q.value = ""; applyFilter();
+      jumpTo(n.id);
+    };
+    ctl.querySelector("#all").onclick = function () {
+      if (!confirm("Mark all " + t.items.length + " items in " + t.name + " as done?")) return;
+      t.items.forEach(function (i) { done[i.id] = true; });
+      save(KEY_DONE, done); refreshAll();
+    };
+    ctl.querySelector("#clear").onclick = function () {
+      if (!confirm("Clear all check marks in " + t.name + "? Your notes stay.")) return;
+      t.items.forEach(function (i) { delete done[i.id]; });
+      save(KEY_DONE, done); refreshAll();
+    };
+    refreshAll();
+  }
+
+  function applyFilter() {
+    var t = current, shown = 0, groupShown = null, groups = [];
+    var rows = panel.querySelectorAll("#list > li");
+    rows.forEach(function (li) {
+      if (li.getAttribute("data-group")) { groups.push({ li: li, any: false }); return; }
+      var id = li.getAttribute("data-id");
+      var it = t.items.filter(function (x) { return x.id === id; })[0];
+      var ok = (filter === "all" || (filter === "done" ? done[id] : !done[id])) &&
+        (!query || it.title.toLowerCase().indexOf(query) !== -1 || it.html.toLowerCase().indexOf(query) !== -1);
+      li.hidden = !ok;
+      if (ok) { shown++; if (groups.length) groups[groups.length - 1].any = true; }
+    });
+    groups.forEach(function (g) { g.li.hidden = !g.any; });
+    panel.querySelector("#empty").hidden = shown > 0;
+    panel.querySelectorAll(".seg button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-f") === filter));
+    });
+  }
+
+  function refreshAll() {
+    var t = current, n = doneCount(t);
+    panel.querySelector("#c-n").textContent = n;
+    panel.querySelector("#c-t").textContent = "of " + t.items.length + (n === t.items.length && n ? " - track complete" : " done");
+    panel.querySelectorAll(".q").forEach(function (li) {
+      var on = !!done[li.getAttribute("data-id")];
+      li.classList.toggle("done", on);
+      li.querySelector("input").checked = on;
+    });
+    panel.querySelectorAll(".cell").forEach(function (c) {
+      c.classList.toggle("on", !!done[c.getAttribute("data-id")]);
+    });
+    renderNav(); applyFilter();
+  }
+
+  function setDone(id, on) {
+    if (on) done[id] = true; else delete done[id];
+    save(KEY_DONE, done); refreshAll();
+  }
+
+  function jumpTo(id) {
+    var li = document.getElementById("q-" + id);
+    if (!li) return;
+    if (li.hidden) { filter = "all"; query = ""; panel.querySelector("#q").value = ""; applyFilter(); }
+    li.querySelector("details").open = true;
+    li.scrollIntoView({ block: "start" });
+    li.classList.add("target");
+    setTimeout(function () { li.classList.remove("target"); }, 1600);
+  }
+
+  /* ---- export / import ---- */
+  document.getElementById("export").onclick = function () {
+    var blob = new Blob([JSON.stringify({ done: done, notes: notes }, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cloud-tracker-progress.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  };
+  var fileInput = document.getElementById("file");
+  document.getElementById("import").onclick = function () { fileInput.click(); };
+  fileInput.onchange = function () {
+    var f = fileInput.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var j = JSON.parse(r.result);
+        if (!j || typeof j.done !== "object") throw new Error("bad file");
+        if (!confirm("Replace the progress in this browser with the file's contents?")) return;
+        done = j.done || {}; notes = j.notes || {};
+        save(KEY_DONE, done); save(KEY_NOTES, notes);
+        openTrack(current.id, true);
+      } catch (e) { alert("That file is not a progress export from this tracker."); }
+    };
+    r.readAsText(f);
+    fileInput.value = "";
+  };
+
+  var start = location.hash.slice(1) || load(KEY_TRACK, "");
+  openTrack(byId(start) ? start : tracks[0].id);
+  window.addEventListener("hashchange", function () {
+    var id = location.hash.slice(1);
+    if (byId(id) && id !== current.id) openTrack(id);
+  });
+})();
+</script>
+</body>
+</html>
